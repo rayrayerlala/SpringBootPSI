@@ -1,0 +1,102 @@
+package com.mvc.psi.service;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.mvc.psi.model.dto.EmployeeDto;
+import com.mvc.psi.model.po.Department;
+import com.mvc.psi.model.po.Employee;
+import com.mvc.psi.repository.DepartmentRepository;
+import com.mvc.psi.repository.EmployeeRepository;
+
+@Service
+public class EmployeeService {
+	
+	@Autowired
+	DepartmentRepository departmentRepository;
+	
+	@Autowired
+	EmployeeRepository employeeRepository;
+	
+	@Autowired
+	ModelMapper modelMapper;
+	
+	// 新增I
+	@Transactional
+	public void add(EmployeeDto employeeDto) {
+		// DTO -> PO
+		Employee employee = modelMapper.map(employeeDto, Employee.class);
+		// 根據 employeeDto 的 department id 找到 department po
+		Long departmentId = employeeDto.getDepartment().getId();
+		Optional<Department> departmentOpt = departmentRepository.findById(departmentId);
+		if(departmentOpt.isPresent()) {
+			Department department = departmentOpt.get();
+			employee.setDepartment(department);
+			employeeRepository.save(employee);
+		}
+	}
+	
+	// 新增II
+	@Transactional
+	public void add(EmployeeDto employeeDto, Long departmentId) {
+		// DTO -> PO
+		Employee employee = modelMapper.map(employeeDto, Employee.class);
+		// 根據 departmentId 找到 department
+		Optional<Department> departmentOpt = departmentRepository.findById(departmentId);
+		if(departmentOpt.isPresent()) {
+			employee.setDepartment(departmentOpt.get());
+			employeeRepository.save(employee);
+		}
+	}
+	
+	// 修改
+	@Transactional
+	public void update(EmployeeDto employeeDto, Long id) {
+		Optional<Employee> employeeOpt = employeeRepository.findById(id);
+		if(employeeOpt.isPresent()) {
+			Employee employee = employeeOpt.get();
+			employee.setName(employeeDto.getName()); // 更新員工姓名
+			
+			Optional<Department> departmentOpt = departmentRepository.findById(employeeDto.getDepartment().getId());
+			if(departmentOpt.isPresent()) {
+				employee.setDepartment(departmentOpt.get()); // 更新部門
+				employeeRepository.save(employee);
+				return;
+			}
+			throw new RuntimeException("修改員工資料資料錯誤: 無此部門");
+		}
+		throw new RuntimeException("修改員工資料資料錯誤: 無此員工");
+	}
+	
+	// 刪除
+	@Transactional
+	public void delete(Long id) {
+		Optional<Employee> employeeOpt = employeeRepository.findById(id);
+		if(employeeOpt.isPresent()) {
+			employeeRepository.delete(employeeOpt.get());
+			return;
+		}
+		throw new RuntimeException("刪除員工資料資料錯誤: 無此員工");
+	}
+	
+	// 單筆查詢
+	public EmployeeDto getEmployeeDtoById(Long id) {
+		Optional<Employee> employeeOpt = employeeRepository.findById(id);
+		return employeeOpt.isPresent() ?
+				modelMapper.map(employeeOpt.get(), EmployeeDto.class):null;
+	}
+	
+	// 多筆查詢
+	public List<EmployeeDto> findAll(){
+		return employeeRepository.findAll()
+				.stream()
+				.map(employee -> modelMapper.map(employee, EmployeeDto.class))
+				.toList();
+	}
+	
+}
